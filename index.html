@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Music PRO Max</title>
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --panel-bg: #212121;
+            --text-main: #ffffff;
+            --text-sec: #aaaaaa;
+            --accent: #ff0000;
+            --voice-active: #00e676;
+            --voice-error: #ff4444;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .header { background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 10; }
+        .header h1 { margin: 0; font-size: 22px; color: var(--accent); text-align: center; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        .search-box { display: flex; gap: 8px; width: 100%; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; background-color: #121212; color: white; font-size: 16px; border: 1px solid #444; outline: none; }
+        button { padding: 12px 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; color: white; transition: 0.2s; }
+        .btn-search { background-color: #333; }
+        
+        /* MICROFONE */
+        .btn-mic { background-color: #0056b3; font-size: 18px; display: flex; align-items: center; justify-content: center; width: 45px;}
+        .btn-mic.listening { background-color: var(--voice-active); animation: pulse-mic 1s infinite; }
+        @keyframes pulse-mic { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .tabs { display: flex; background-color: #121212; }
+        .tab-btn { flex: 1; padding: 15px; background: none; color: var(--text-sec); border-radius: 0; border-bottom: 3px solid transparent; font-size: 15px; }
+        .tab-btn.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
+
+        .main-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+        .player-section { background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #333; }
+        .video-wrapper { width: 100%; max-width: 400px; aspect-ratio: 16/9; background-color: #000; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); position: relative; }
+        .video-wrapper iframe { width: 100%; height: 100%; border: none; }
+
+        #statusMessage { color: #ffaa00; font-size: 13px; text-align: center; margin-bottom: 5px; height: 15px; }
+        #voiceStatus { color: var(--voice-active); font-size: 13px; text-align: center; margin-top: 5px; height: 15px; font-weight: bold;}
+
+        /* MODO ÁUDIO */
+        .audio-mode .video-wrapper { position: absolute; opacity: 0.01; pointer-events: none; z-index: -1; }
+        .audio-mode-cover { display: none; width: 120px; height: 120px; background: linear-gradient(135deg, var(--accent), #7b1fa2); border-radius: 50%; margin: 10px 0; animation: spin 5s linear infinite; box-shadow: 0 0 20px rgba(123, 31, 162, 0.5); }
+        .audio-mode .audio-mode-cover { display: flex; align-items: center; justify-content: center; font-size: 40px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .btn-toggle { width: 100%; max-width: 400px; padding: 12px; background-color: var(--accent); margin-top: 10px; border-radius: 8px; }
+
+        .scroll-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 80px; }
+        #playlistsView { display: none; } 
+
+        .track-card { display: flex; background-color: var(--panel-bg); padding: 10px; border-radius: 8px; align-items: center; gap: 12px; }
+        .track-card img { width: 90px; height: 50px; border-radius: 5px; object-fit: cover; cursor: pointer; }
+        .track-info { flex: 1; cursor: pointer; }
+        .track-info h3 { margin: 0 0 5px 0; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .track-info p { margin: 0; color: var(--text-sec); font-size: 12px; }
+        .btn-add { background-color: #333; padding: 10px 15px; border-radius: 50%; font-size: 16px; }
+        .btn-add:active { background-color: #555; }
+        .btn-remove { background-color: transparent; color: #ff4444; font-size: 18px; padding: 10px; }
+
+        .playlist-card { background: linear-gradient(45deg, #333, #222); padding: 20px; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .playlist-card h3 { margin: 0; font-size: 18px; color: white; }
+        .playlist-card p { margin: 5px 0 0 0; font-size: 13px; color: var(--text-sec); }
+        .btn-play-all { background-color: #1db954; color: white; padding: 8px 15px; border-radius: 20px; }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-content { background-color: var(--panel-bg); width: 90%; max-width: 350px; padding: 20px; border-radius: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .modal-content h2 { margin: 0; font-size: 18px; text-align: center; }
+        .new-pl-box { display: flex; gap: 5px; }
+        .pl-list-btn { background-color: #333; padding: 12px; width: 100%; text-align: left; border-radius: 8px; font-size: 15px; margin-bottom: 5px;}
+        .pl-list-btn:hover { background-color: #444; }
+        .btn-close { background-color: #ff0000; margin-top: 10px; }
+
+        .loading { text-align: center; color: var(--text-sec); margin-top: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎵 AI Music <span style="font-size: 12px; background: #0056b3; padding: 2px 6px; border-radius: 10px; color: #fff; margin-left: 5px;">PRO MAX</span></h1>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Fale ou digite..." onkeypress="handleEnter(event)">
+            <button class="btn-mic" id="micBtn" onclick="toggleVoiceAssistant()">🎤</button>
+            <button class="btn-search" onclick="searchYouTube()">Buscar</button>
+        </div>
+        <div id="voiceStatus"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tabSearch" onclick="switchTab('search')">🔍 Buscar</button>
+        <button class="tab-btn" id="tabPlaylists" onclick="switchTab('playlists')">📚 Playlists</button>
+    </div>
+
+    <div class="main-container">
+        <div class="player-section" id="playerArea">
+            <div id="statusMessage"></div>
+            <div class="audio-mode-cover">💿</div>
+            <div class="video-wrapper"><div id="player"></div></div>
+            <button class="btn-toggle" id="toggleBtn" onclick="toggleMode()">🎥 MODO VÍDEO (Mudar p/ Áudio)</button>
+        </div>
+
+        <div class="scroll-area" id="searchView">
+            <div class="loading">
+                <h3>Teste Final!</h3>
+                <p>Abra este site no <b>Google Chrome</b> (Android) ou <b>Safari</b> (iPhone).</p>
+            </div>
+        </div>
+        <div class="scroll-area" id="playlistsView"></div>
+    </div>
+
+    <div class="modal-overlay" id="playlistModal">
+        <div class="modal-content">
+            <h2>Adicionar à Playlist</h2>
+            <div class="new-pl-box">
+                <input type="text" id="newPlaylistName" placeholder="Nome da playlist...">
+                <button style="background-color: #1db954;" onclick="createNewPlaylist()">Criar</button>
+            </div>
+            <div style="border-top: 1px solid #444; margin: 10px 0;"></div>
+            <div id="modalPlaylistsList" style="max-height: 200px; overflow-y: auto;"></div>
+            <button class="btn-close" onclick="closeModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        const API_KEY = 'AIzaSyAdxGXitd3rcDOAJF9-A0BinbFNH3-VSD8'; 
+        let player, isVideoMode = true, currentTitle = "";
+        let myPlaylists = JSON.parse(localStorage.getItem('myMusicPlaylists')) || {};
+        let currentQueue = [], currentQueueIndex = 0, trackToSave = null;
+
+        // PLAYER DE VÍDEO
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%', width: '100%', videoId: '', host: 'https://www.youtube-nocookie.com',
+                playerVars: { 'autoplay': 1, 'controls': 1, 'playsinline': 1, 'rel': 0 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED && currentQueue.length > 0 && currentQueueIndex < currentQueue.length - 1) {
+                currentQueueIndex++;
+                playVideo(currentQueue[currentQueueIndex].id, currentQueue[currentQueueIndex].title);
+            }
+        }
+
+        // ==========================================
+        // ASSISTENTE DE VOZ (À PROVA DE FALHAS)
+        // ==========================================
+        const voiceStatus = document.getElementById('voiceStatus');
+        const micBtn = document.getElementById('micBtn');
+        let recognition;
+
+        function iniciarVoz() {
+            // Verifica qual o motor de voz do navegador
+            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!window.SpeechRecognition) {
+                alert("❌ SEU NAVEGADOR NÃO SUPORTA VOZ!\n\nSe você usa iPhone, abra este site usando o SAFARI.\nSe você usa Android, abra no GOOGLE CHROME.");
+                micBtn.style.backgroundColor = "#ff4444";
+                return false;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = false;
+            
+            recognition.onstart = function() {
+                micBtn.classList.add('listening');
+                voiceStatus.style.color = "var(--voice-active)";
+                voiceStatus.innerText = "🎤 Pode falar...";
+            };
+            
+            recognition.onresult = function(event) {
+                const comando = event.results[0][0].transcript.toLowerCase();
+                document.getElementById('searchInput').value = comando;
+                voiceStatus.innerText = `🔍 Buscando: "${comando}"`;
+                processarComandoDeVoz(comando);
+            };
+
+            recognition.onerror = function(event) {
+                micBtn.classList.remove('listening');
+                voiceStatus.style.color = "var(--voice-error)";
+                
+                if (event.error === 'not-allowed') {
+                    alert("⚠️ O MICROFONE ESTÁ BLOQUEADO!\n\nVocê precisa clicar no 'Cadeado' ou 'Aa' lá em cima na barra de endereços do navegador e PERMITIR o uso do microfone.");
+                    voiceStatus.innerText = "❌ Microfone Bloqueado.";
+                } else if (event.error === 'no-speech') {
+                    voiceStatus.innerText = "🔇 Não ouvi nada.";
+                } else {
+                    voiceStatus.innerText = "❌ Erro: " + event.error;
+                }
+                setTimeout(() => { voiceStatus.innerText = ""; }, 4000);
+            };
+            
+            recognition.onend = function() { micBtn.classList.remove('listening'); };
+            return true;
+        }
+
+        function toggleVoiceAssistant() {
+            if (!recognition) {
+                let pronto = iniciarVoz();
+                if (!pronto) return;
+            }
+            try { recognition.start(); } catch(e) { console.log("Já escutando"); }
+        }
+
+        function processarComandoDeVoz(comando) {
+            if (comando.includes('pausar') || comando.includes('parar')) {
+                if(player && player.pauseVideo) player.pauseVideo();
+            } 
+            else if (comando.includes('continuar') || comando.includes('play')) {
+                if(player && player.playVideo) player.playVideo();
+            }
+            else {
+                let musica = comando.replace('tocar', '').replace('pesquisar', '').trim();
+                searchYouTube(musica, true); // Play Automático
+            }
+        }
+
+        // ==========================================
+        // FILTRO MATA-VEVO (FIM DO ERRO 153)
+        // ==========================================
+        async function searchYouTube(query = null, autoPlayFirst = false) {
+            switchTab('search');
+            const searchInput = document.getElementById('searchInput').value;
+            const finalQuery = query || searchInput;
+
+            if (!finalQuery) return;
+
+            const searchView = document.getElementById('searchView');
+            searchView.innerHTML = '<div class="loading">Buscando e driblando bloqueios... ⏳</div>';
+            currentQueue = []; 
+
+            // O SEGREDO: Pede para o YouTube trazer letras e vídeos de fãs, NUNCA canais da Vevo!
+            const safeQuery = finalQuery + " lyric letra";
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(safeQuery)}&type=video&videoEmbeddable=true&maxResults=25&key=${API_KEY}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if(data.items.length === 0) {
+                    searchView.innerHTML = '<div class="loading">Nada encontrado.</div>';
+                    return;
+                }
+
+                searchView.innerHTML = '';
+                let encontrouMusicaValida = false;
+                
+                data.items.forEach(item => {
+                    // FILTRO DE SEGURANÇA: Exclui canais Vevo e Oficiais da lista (Eles causam o Erro 153)
+                    const canal = item.snippet.channelTitle.toLowerCase();
+                    if(canal.includes('vevo') || canal.includes('oficial') || canal.includes('official')) {
+                        return; // Pula essa música!
+                    }
+
+                    encontrouMusicaValida = true;
+                    const trackObj = {
+                        id: item.id.videoId,
+                        title: item.snippet.title.replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
+                        channel: item.snippet.channelTitle,
+                        thumbnail: item.snippet.thumbnails.medium.url
+                    };
+
+                    const card = document.createElement('div');
+                    card.className = 'track-card';
+                    card.innerHTML = `
+                        <img src="${trackObj.thumbnail}" onclick="playVideo('${trackObj.id}', '${trackObj.title.replace(/'/g, "\\'")}')">
+                        <div class="track-info" onclick="playVideo('${trackObj.id}', '${trackObj.title.replace(/'/g, "\\'")}')">
+                            <h3>${trackObj.title}</h3>
+                            <p>${trackObj.channel}</p>
+                        </div>
+                        <button class="btn-add" onclick="openModal('${encodeURIComponent(JSON.stringify(trackObj))}')">➕</button>
+                    `;
+                    searchView.appendChild(card);
+                });
+
+                // Toca a 1ª música que passou no filtro se usar a voz
+                if(autoPlayFirst && encontrouMusicaValida) {
+                    const firstVideo = searchView.querySelector('.track-card img');
+                    if(firstVideo) firstVideo.click();
+                }
+
+            } catch (error) {
+                searchView.innerHTML = `<div class="loading" style="color: #ff4444;">Erro de conexão.</div>`;
+            }
+        }
+
+        // ==========================================
+        // RESTO DO CÓDIGO DA INTERFACE
+        // ==========================================
+        function switchTab(tab) {
+            document.getElementById('tabSearch').classList.remove('active');
+            document.getElementById('tabPlaylists').classList.remove('active');
+            document.getElementById('searchView').style.display = 'none';
+            document.getElementById('playlistsView').style.display = 'none';
+
+            if(tab === 'search') {
+                document.getElementById('tabSearch').classList.add('active');
+                document.getElementById('searchView').style.display = 'flex';
+            } else {
+                document.getElementById('tabPlaylists').classList.add('active');
+                document.getElementById('playlistsView').style.display = 'flex';
+                renderPlaylistsTab();
+            }
+        }
+
+        function toggleMode() {
+            const playerArea = document.getElementById('playerArea');
+            const btn = document.getElementById('toggleBtn');
+            isVideoMode = !isVideoMode;
+            if(isVideoMode) {
+                playerArea.classList.remove('audio-mode');
+                btn.innerHTML = "🎥 MODO VÍDEO (Mudar p/ Áudio)";
+                btn.style.backgroundColor = "#ff0000";
+            } else {
+                playerArea.classList.add('audio-mode');
+                btn.innerHTML = "🎧 MODO ÁUDIO (Mudar p/ Vídeo)";
+                btn.style.backgroundColor = "#1db954"; 
+            }
+        }
+
+        function playVideo(videoId, title) {
+            currentTitle = title;
+            if (player && player.loadVideoById) {
+                player.loadVideoById(videoId);
+                if (window.innerWidth <= 768) document.getElementById('playerArea').scrollIntoView({ behavior: 'smooth' });
+                if (!isVideoMode) toggleMode();
+            }
+        }
+
+        function savePlaylistsToStorage() { localStorage.setItem('myMusicPlaylists', JSON.stringify(myPlaylists)); }
+
+        function openModal(trackObjString) {
+            trackToSave = JSON.parse(decodeURIComponent(trackObjString));
+            document.getElementById('playlistModal').style.display = 'flex';
+            renderModalPlaylists();
+        }
+
+        function closeModal() {
+            document.getElementById('playlistModal').style.display = 'none';
+            document.getElementById('newPlaylistName').value = '';
+        }
+
+        function renderModalPlaylists() {
+            const list = document.getElementById('modalPlaylistsList');
+            list.innerHTML = '';
+            const names = Object.keys(myPlaylists);
+            if(names.length === 0) list.innerHTML = '<p style="text-align:center; font-size:13px;">Sem playlists.</p>';
+            else names.forEach(name => list.innerHTML += `<button class="pl-list-btn" onclick="addToPlaylist('${name}')">📁 ${name} (${myPlaylists[name].length})</button>`);
+        }
+
+        function createNewPlaylist() {
+            const name = document.getElementById('newPlaylistName').value.trim();
+            if(!name) return;
+            if(!myPlaylists[name]) myPlaylists[name] = [];
+            addToPlaylist(name);
+        }
+
+        function addToPlaylist(playlistName) {
+            const exists = myPlaylists[playlistName].find(t => t.id === trackToSave.id);
+            if(!exists) { myPlaylists[playlistName].push(trackToSave); savePlaylistsToStorage(); }
+            closeModal();
+        }
+
+        function removeFromPlaylist(playlistName, index) {
+            if(confirm("Remover música?")) {
+                myPlaylists[playlistName].splice(index, 1);
+                savePlaylistsToStorage();
+                openPlaylistView(playlistName); 
+            }
+        }
+
+        function deletePlaylist(playlistName) {
+            if(confirm(`Apagar a playlist "${playlistName}"?`)) {
+                delete myPlaylists[playlistName];
+                savePlaylistsToStorage();
+                renderPlaylistsTab();
+            }
+        }
+
+        function renderPlaylistsTab() {
+            const view = document.getElementById('playlistsView');
+            view.innerHTML = '';
+            const names = Object.keys(myPlaylists);
+            if(names.length === 0) {
+                view.innerHTML = `<div class="loading"><h3>Vazio</h3></div>`;
+                return;
+            }
+            names.forEach(name => {
+                const card = document.createElement('div');
+                card.className = 'playlist-card';
+                card.innerHTML = `
+                    <div onclick="openPlaylistView('${name}')"><h3>📁 ${name}</h3><p>${myPlaylists[name].length} músicas</p></div>
+                    <button class="btn-remove" onclick="deletePlaylist('${name}')">🗑️</button>`;
+                view.appendChild(card);
+            });
+        }
+
+        function openPlaylistView(playlistName) {
+            const view = document.getElementById('playlistsView');
+            const tracks = myPlaylists[playlistName];
+            view.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <button style="background:none; color:white; font-size:16px;" onclick="renderPlaylistsTab()">🔙 Voltar</button>
+                    <button class="btn-play-all" onclick="playFromQueue('${playlistName}', 0)">▶️ Tocar Tudo</button>
+                </div>
+                <h2 style="margin-top:0;">📁 ${playlistName}</h2>
+            `;
+            tracks.forEach((trackObj, index) => {
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+                    <img src="${trackObj.thumbnail}" onclick="playFromQueue('${playlistName}', ${index})">
+                    <div class="track-info" onclick="playFromQueue('${playlistName}', ${index})">
+                        <h3>${trackObj.title}</h3><p>${trackObj.channel}</p>
+                    </div>
+                    <button class="btn-remove" onclick="removeFromPlaylist('${playlistName}', ${index})">❌</button>
+                `;
+                view.appendChild(card);
+            });
+        }
+
+        function playFromQueue(playlistName, startIndex) {
+            currentQueue = myPlaylists[playlistName];
+            currentQueueIndex = startIndex;
+            playVideo(currentQueue[startIndex].id, currentQueue[startIndex].title);
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') searchYouTube(); }
+    </script>
+</body>
+</html>
